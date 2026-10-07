@@ -9,12 +9,16 @@ type LibraryItem = {
   notes: string | null;
   created_at: string;
   media: {
-    id: number;
-    title: string;
-    type: "movie" | "tv";
-    poster_path: string | null;
-    release_date: string | null;
-  };
+  id: number;
+  title: string;
+  type: "movie" | "tv";
+  poster_path: string | null;
+  backdrop_path: string | null;
+  overview: string | null;
+  release_date: string | null;
+  tmdb_rating: number | null;
+  runtime: number | null;
+};
 };
 
 type WatchCounts = Record<number, number>;

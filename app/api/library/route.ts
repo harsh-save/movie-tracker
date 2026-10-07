@@ -15,12 +15,22 @@ export async function GET() {
           notes,
           created_at,
           media (
-            id,
-            title,
-            type,
-            poster_path,
-            release_date
-          )
+  id,
+  title,
+  type,
+  poster_path,
+  backdrop_path,
+  overview,
+  release_date,
+  tmdb_rating,
+  runtime,
+  media_genres (
+    genres (
+      id,
+      name
+    )
+  )
+)
           
         `)
         .order("created_at", { ascending: false });
@@ -95,7 +105,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check whether the media already exists
+    if (type !== "movie" && type !== "tv") {
+      return NextResponse.json(
+        { error: "Invalid media type" },
+        { status: 400 }
+      );
+    }
+
+    /*
+     * Fetch the complete title details from TMDB.
+     * This gives us runtime, rating and genres.
+     */
+    const { getTMDBDetails } = await import("@/lib/tmdb");
+
+    const details = await getTMDBDetails(
+      Number(tmdb_id),
+      type
+    );
+
+    /*
+     * TV and movies use different runtime fields.
+     *
+     * Movies:
+     *   runtime: 120
+     *
+     * TV:
+     *   episode_run_time: [43]
+     */
+    const runtime =
+      type === "movie"
+        ? details.runtime ?? null
+        : details.episode_run_time?.[0] ?? null;
+
+    const tmdbRating =
+      typeof details.vote_average === "number"
+        ? Number(details.vote_average.toFixed(1))
+        : null;
+
+    /*
+     * Check whether this TMDB title already exists.
+     */
     const { data: existingMedia, error: mediaCheckError } =
       await supabaseServer
         .from("media")
@@ -110,7 +159,9 @@ export async function POST(request: NextRequest) {
 
     let mediaId = existingMedia?.id;
 
-    // Create media record if necessary
+    /*
+     * Create the media record if it doesn't exist.
+     */
     if (!mediaId) {
       const { data: newMedia, error: mediaInsertError } =
         await supabaseServer
@@ -119,10 +170,25 @@ export async function POST(request: NextRequest) {
             tmdb_id,
             type,
             title,
-            poster_path,
-            backdrop_path,
-            overview,
-            release_date: release_date || null,
+            overview:
+              details.overview ??
+              overview ??
+              null,
+            poster_path:
+              details.poster_path ??
+              poster_path ??
+              null,
+            backdrop_path:
+              details.backdrop_path ??
+              backdrop_path ??
+              null,
+            release_date:
+              details.release_date ||
+              details.first_air_date ||
+              release_date ||
+              null,
+            tmdb_rating: tmdbRating,
+            runtime,
           })
           .select("id")
           .single();
@@ -132,9 +198,107 @@ export async function POST(request: NextRequest) {
       }
 
       mediaId = newMedia.id;
+    } else {
+      /*
+       * Update cached TMDB information in case the title
+       * already exists in the media table.
+       */
+      const { error: mediaUpdateError } =
+        await supabaseServer
+          .from("media")
+          .update({
+            overview:
+              details.overview ??
+              overview ??
+              null,
+            poster_path:
+              details.poster_path ??
+              poster_path ??
+              null,
+            backdrop_path:
+              details.backdrop_path ??
+              backdrop_path ??
+              null,
+            release_date:
+              details.release_date ||
+              details.first_air_date ||
+              release_date ||
+              null,
+            tmdb_rating: tmdbRating,
+            runtime,
+          })
+          .eq("id", mediaId);
+
+      if (mediaUpdateError) {
+        throw mediaUpdateError;
+      }
     }
 
-    // Check whether it's already in the library
+    /*
+     * Save genres.
+     */
+    const genres = Array.isArray(details.genres)
+      ? details.genres
+      : [];
+
+    for (const genre of genres) {
+      if (!genre.id || !genre.name) {
+        continue;
+      }
+
+      const { data: existingGenre, error: genreCheckError } =
+        await supabaseServer
+          .from("genres")
+          .select("id")
+          .eq("tmdb_id", genre.id)
+          .maybeSingle();
+
+      if (genreCheckError) {
+        throw genreCheckError;
+      }
+
+      let genreId = existingGenre?.id;
+
+      if (!genreId) {
+        const { data: newGenre, error: genreInsertError } =
+          await supabaseServer
+            .from("genres")
+            .insert({
+              tmdb_id: genre.id,
+              name: genre.name,
+            })
+            .select("id")
+            .single();
+
+        if (genreInsertError) {
+          throw genreInsertError;
+        }
+
+        genreId = newGenre.id;
+      }
+
+      const { error: mediaGenreError } =
+        await supabaseServer
+          .from("media_genres")
+          .upsert(
+            {
+              media_id: mediaId,
+              genre_id: genreId,
+            },
+            {
+              onConflict: "media_id,genre_id",
+              ignoreDuplicates: true,
+            }
+          );
+
+      if (mediaGenreError) {
+        throw mediaGenreError;
+      }
+    }
+
+    /*
+     * Check whether the title is already in the library.
+     */
     const { data: existingLibrary, error: libraryCheckError } =
       await supabaseServer
         .from("library")
@@ -153,7 +317,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Add as completed
+    /*
+     * Add it to the library as completed.
+     */
     const { error: libraryInsertError } =
       await supabaseServer
         .from("library")
@@ -166,7 +332,9 @@ export async function POST(request: NextRequest) {
       throw libraryInsertError;
     }
 
-    // Record the first watch
+    /*
+     * Adding a title means it has been watched once.
+     */
     const { error: historyInsertError } =
       await supabaseServer
         .from("watch_history")
@@ -196,288 +364,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-// export async function POST(request: NextRequest) {
-//   try {
-//     const body = await request.json();
-
-//     const {
-//       tmdb_id,
-//       type,
-//       title,
-//       poster_path,
-//       backdrop_path,
-//       overview,
-//       release_date,
-//     } = body;
-
-//     if (!tmdb_id || !type || !title) {
-//       return NextResponse.json(
-//         { error: "Missing required fields" },
-//         { status: 400 }
-//       );
-//     }
-
-//     if (type !== "movie" && type !== "tv") {
-//       return NextResponse.json(
-//         { error: "Invalid media type" },
-//         { status: 400 }
-//       );
-//     }
-
-//     /*
-//      * Fetch the complete title details from TMDB.
-//      * This gives us runtime, rating and genres.
-//      */
-//     const { getTMDBDetails } = await import("@/lib/tmdb");
-
-//     const details = await getTMDBDetails(
-//       Number(tmdb_id),
-//       type
-//     );
-
-//     /*
-//      * TV and movies use different runtime fields.
-//      *
-//      * Movies:
-//      *   runtime: 120
-//      *
-//      * TV:
-//      *   episode_run_time: [43]
-//      */
-//     const runtime =
-//       type === "movie"
-//         ? details.runtime ?? null
-//         : details.episode_run_time?.[0] ?? null;
-
-//     const tmdbRating =
-//       typeof details.vote_average === "number"
-//         ? Number(details.vote_average.toFixed(1))
-//         : null;
-
-//     /*
-//      * Check whether this TMDB title already exists.
-//      */
-//     const { data: existingMedia, error: mediaCheckError } =
-//       await supabaseServer
-//         .from("media")
-//         .select("id")
-//         .eq("tmdb_id", tmdb_id)
-//         .eq("type", type)
-//         .maybeSingle();
-
-//     if (mediaCheckError) {
-//       throw mediaCheckError;
-//     }
-
-//     let mediaId = existingMedia?.id;
-
-//     /*
-//      * Create the media record if it doesn't exist.
-//      */
-//     if (!mediaId) {
-//       const { data: newMedia, error: mediaInsertError } =
-//         await supabaseServer
-//           .from("media")
-//           .insert({
-//             tmdb_id,
-//             type,
-//             title,
-//             overview:
-//               details.overview ??
-//               overview ??
-//               null,
-//             poster_path:
-//               details.poster_path ??
-//               poster_path ??
-//               null,
-//             backdrop_path:
-//               details.backdrop_path ??
-//               backdrop_path ??
-//               null,
-//             release_date:
-//               details.release_date ||
-//               details.first_air_date ||
-//               release_date ||
-//               null,
-//             tmdb_rating: tmdbRating,
-//             runtime,
-//           })
-//           .select("id")
-//           .single();
-
-//       if (mediaInsertError) {
-//         throw mediaInsertError;
-//       }
-
-//       mediaId = newMedia.id;
-//     } else {
-//       /*
-//        * Update cached TMDB information in case the title
-//        * already exists in the media table.
-//        */
-//       const { error: mediaUpdateError } =
-//         await supabaseServer
-//           .from("media")
-//           .update({
-//             overview:
-//               details.overview ??
-//               overview ??
-//               null,
-//             poster_path:
-//               details.poster_path ??
-//               poster_path ??
-//               null,
-//             backdrop_path:
-//               details.backdrop_path ??
-//               backdrop_path ??
-//               null,
-//             release_date:
-//               details.release_date ||
-//               details.first_air_date ||
-//               release_date ||
-//               null,
-//             tmdb_rating: tmdbRating,
-//             runtime,
-//           })
-//           .eq("id", mediaId);
-
-//       if (mediaUpdateError) {
-//         throw mediaUpdateError;
-//       }
-//     }
-
-//     /*
-//      * Save genres.
-//      */
-//     const genres = Array.isArray(details.genres)
-//       ? details.genres
-//       : [];
-
-//     for (const genre of genres) {
-//       if (!genre.id || !genre.name) {
-//         continue;
-//       }
-
-//       const { data: existingGenre, error: genreCheckError } =
-//         await supabaseServer
-//           .from("genres")
-//           .select("id")
-//           .eq("tmdb_id", genre.id)
-//           .maybeSingle();
-
-//       if (genreCheckError) {
-//         throw genreCheckError;
-//       }
-
-//       let genreId = existingGenre?.id;
-
-//       if (!genreId) {
-//         const { data: newGenre, error: genreInsertError } =
-//           await supabaseServer
-//             .from("genres")
-//             .insert({
-//               tmdb_id: genre.id,
-//               name: genre.name,
-//             })
-//             .select("id")
-//             .single();
-
-//         if (genreInsertError) {
-//           throw genreInsertError;
-//         }
-
-//         genreId = newGenre.id;
-//       }
-
-//       const { error: mediaGenreError } =
-//         await supabaseServer
-//           .from("media_genres")
-//           .upsert(
-//             {
-//               media_id: mediaId,
-//               genre_id: genreId,
-//             },
-//             {
-//               onConflict: "media_id,genre_id",
-//               ignoreDuplicates: true,
-//             }
-//           );
-
-//       if (mediaGenreError) {
-//         throw mediaGenreError;
-//       }
-//     }
-
-//     /*
-//      * Check whether the title is already in the library.
-//      */
-//     const { data: existingLibrary, error: libraryCheckError } =
-//       await supabaseServer
-//         .from("library")
-//         .select("id")
-//         .eq("media_id", mediaId)
-//         .maybeSingle();
-
-//     if (libraryCheckError) {
-//       throw libraryCheckError;
-//     }
-
-//     if (existingLibrary) {
-//       return NextResponse.json({
-//         success: false,
-//         message: "Already in your library",
-//       });
-//     }
-
-//     /*
-//      * Add it to the library as completed.
-//      */
-//     const { error: libraryInsertError } =
-//       await supabaseServer
-//         .from("library")
-//         .insert({
-//           media_id: mediaId,
-//           status: "completed",
-//         });
-
-//     if (libraryInsertError) {
-//       throw libraryInsertError;
-//     }
-
-//     /*
-//      * Adding a title means it has been watched once.
-//      */
-//     const { error: historyInsertError } =
-//       await supabaseServer
-//         .from("watch_history")
-//         .insert({
-//           media_id: mediaId,
-//         });
-
-//     if (historyInsertError) {
-//       throw historyInsertError;
-//     }
-
-//     return NextResponse.json({
-//       success: true,
-//       message: "Added to your library",
-//     });
-//   } catch (error) {
-//     console.error("Library POST error:", error);
-
-//     return NextResponse.json(
-//       {
-//         error:
-//           error instanceof Error
-//             ? error.message
-//             : "Something went wrong",
-//       },
-//       { status: 500 }
-//     );
-//   }
-// }
-
 export async function DELETE(request: NextRequest) {
   try {
     const id = request.nextUrl.searchParams.get("id");
