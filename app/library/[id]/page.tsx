@@ -206,8 +206,11 @@ export default function LibraryDetailsPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-950 text-white">
-        <div className="mx-auto max-w-5xl px-6 py-12">
-          <p className="text-gray-400">Loading...</p>
+        <div className="mx-auto max-w-6xl px-6 py-12">
+          <div className="animate-pulse space-y-6">
+            <div className="h-6 w-32 rounded bg-gray-800" />
+            <div className="h-[500px] rounded-2xl bg-gray-900" />
+          </div>
         </div>
       </main>
     );
@@ -216,12 +219,12 @@ export default function LibraryDetailsPage() {
   if (error && !item) {
     return (
       <main className="min-h-screen bg-gray-950 text-white">
-        <div className="mx-auto max-w-5xl px-6 py-12">
+        <div className="mx-auto max-w-6xl px-6 py-12">
           <p className="text-red-400">{error}</p>
 
           <button
             onClick={() => router.push("/library")}
-            className="mt-4 text-sm text-gray-400 hover:text-white"
+            className="mt-4 text-sm text-gray-400 transition hover:text-white"
           >
             ← Back to library
           </button>
@@ -255,96 +258,199 @@ export default function LibraryDetailsPage() {
         }m`
       : null;
 
+  const backdropUrl = media.backdrop_path
+    ? `https://image.tmdb.org/t/p/original${media.backdrop_path}`
+    : null;
+
+  const year =
+    media.release_date?.slice(0, 4) || "Unknown";
+
+  const formattedAddedDate = new Date(
+    item.created_at
+  ).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
   return (
     <main className="min-h-screen bg-gray-950 text-white">
-      <div className="mx-auto max-w-5xl px-6 py-8">
-        {/* Back */}
-        <button
-          onClick={() => router.push("/library")}
-          className="mb-8 text-sm text-gray-400 transition hover:text-white"
-        >
-          ← Back to library
-        </button>
+      {/* =====================================================
+          HERO
+      ====================================================== */}
+      <section className="relative min-h-[620px] overflow-hidden">
+        {/* Backdrop */}
+        {backdropUrl ? (
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: `url("${backdropUrl}")`,
+            }}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gray-900" />
+        )}
 
-        {/* Main information */}
-        <div className="grid gap-8 md:grid-cols-[280px_1fr]">
-          {/* Poster */}
-          <div>
-            {media.poster_path ? (
-              <img
-                src={`https://image.tmdb.org/t/p/w500${media.poster_path}`}
-                alt={media.title}
-                className="w-full rounded-xl object-cover shadow-2xl"
-              />
-            ) : (
-              <div className="flex aspect-[2/3] items-center justify-center rounded-xl bg-gray-800 text-gray-500">
-                No poster
-              </div>
-            )}
-          </div>
+        {/* Dark overlays */}
+        <div className="absolute inset-0 bg-black/60" />
 
-          {/* Details */}
-          <div>
-            <h1 className="text-4xl font-bold">
-              {media.title}
-            </h1>
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/70 to-black/20" />
 
-            <p className="mt-3 text-gray-400">
-              {media.release_date?.slice(0, 4) ||
-                "Unknown"}{" "}
-              ·{" "}
-              {media.type === "movie"
-                ? "Movie"
-                : "TV"}
-            </p>
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-950 via-gray-950/50 to-transparent" />
 
-            {/* Metadata */}
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              {media.tmdb_rating !== null && (
-                <span className="rounded-lg bg-gray-900 px-4 py-2 text-sm">
-                  ⭐ {Number(media.tmdb_rating).toFixed(1)}
-                  <span className="ml-2 text-gray-500">
-                    TMDB
-                  </span>
-                </span>
-              )}
+        {/* Hero content */}
+        <div className="relative mx-auto max-w-6xl px-6 py-8">
+          {/* Back */}
+          <button
+            onClick={() => router.push("/library")}
+            className="mb-12 text-sm font-medium text-gray-300 transition hover:text-white"
+          >
+            ← Back to library
+          </button>
 
-              {formattedRuntime && (
-                <span className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-gray-300">
-                  🕒 {formattedRuntime}
-                </span>
+          <div className="grid items-end gap-8 md:grid-cols-[260px_1fr] lg:grid-cols-[300px_1fr]">
+            {/* Poster */}
+            <div className="mx-auto w-full max-w-[300px] md:mx-0">
+              {media.poster_path ? (
+                <img
+                  src={`https://image.tmdb.org/t/p/w500${media.poster_path}`}
+                  alt={media.title}
+                  className="w-full rounded-2xl object-cover shadow-2xl ring-1 ring-white/10"
+                />
+              ) : (
+                <div className="flex aspect-[2/3] items-center justify-center rounded-2xl bg-gray-800 text-gray-500">
+                  No poster
+                </div>
               )}
             </div>
 
-            {/* Genres */}
-            {genres.length > 0 && (
-              <div className="mt-5 flex flex-wrap gap-2">
-                {genres.map((genre) => (
-                  <span
-                    key={genre.id}
-                    className="rounded-full border border-gray-700 px-3 py-1 text-sm text-gray-300"
-                  >
-                    {genre.name}
-                  </span>
-                ))}
+            {/* Information */}
+            <div className="pb-2">
+              {/* Type badge */}
+              <div className="mb-4">
+                <span className="rounded-full border border-white/20 bg-black/40 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-200 backdrop-blur">
+                  {media.type === "movie"
+                    ? "Movie"
+                    : "TV Show"}
+                </span>
               </div>
-            )}
 
-            {/* Added date */}
-            <p className="mt-6 text-sm text-gray-500">
-              Added{" "}
-              {new Date(
-                item.created_at
-              ).toLocaleDateString(undefined, {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
+              {/* Title */}
+              <h1 className="max-w-4xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+                {media.title}
+              </h1>
+
+              {/* Basic metadata */}
+              <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-300">
+                <span>{year}</span>
+
+                <span className="text-gray-600">
+                  •
+                </span>
+
+                <span>
+                  {media.type === "movie"
+                    ? "Movie"
+                    : "TV Show"}
+                </span>
+
+                {formattedRuntime && (
+                  <>
+                    <span className="text-gray-600">
+                      •
+                    </span>
+
+                    <span>
+                      {formattedRuntime}
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Rating */}
+              {media.tmdb_rating !== null && (
+                <div className="mt-6 flex items-center gap-3">
+                  <div className="flex items-center gap-2 rounded-lg bg-black/50 px-4 py-2.5 backdrop-blur">
+                    <span className="text-lg">
+                      ⭐
+                    </span>
+
+                    <span className="text-lg font-semibold">
+                      {Number(
+                        media.tmdb_rating
+                      ).toFixed(1)}
+                    </span>
+
+                    <span className="text-sm text-gray-400">
+                      / 10
+                    </span>
+
+                    <span className="ml-1 text-xs uppercase tracking-wider text-gray-500">
+                      TMDB
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Genres */}
+              {genres.length > 0 && (
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {genres.map((genre) => (
+                    <span
+                      key={genre.id}
+                      className="rounded-full border border-white/15 bg-black/30 px-3 py-1 text-sm text-gray-300 backdrop-blur"
+                    >
+                      {genre.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Added date */}
+              <p className="mt-6 text-sm text-gray-500">
+                Added to library{" "}
+                <span className="text-gray-300">
+                  {formattedAddedDate}
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          CONTENT
+      ====================================================== */}
+      <div className="mx-auto max-w-6xl px-6 pb-16">
+        {/* Description */}
+        {media.overview && (
+          <section className="border-b border-gray-800 py-10">
+            <h2 className="text-xl font-semibold">
+              Overview
+            </h2>
+
+            <p className="mt-4 max-w-4xl text-base leading-8 text-gray-400">
+              {media.overview}
             </p>
+          </section>
+        )}
+
+        {/* Watch information */}
+        <section className="py-10">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-wider text-gray-500">
+                Your Library
+              </p>
+
+              <h2 className="mt-1 text-2xl font-semibold">
+                Watch History
+              </h2>
+            </div>
 
             {/* Status */}
-            <div className="mt-6">
-              <p className="text-sm text-gray-500">
+            <div className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-3">
+              <p className="text-xs uppercase tracking-wider text-gray-500">
                 Status
               </p>
 
@@ -352,119 +458,112 @@ export default function LibraryDetailsPage() {
                 {item.status}
               </p>
             </div>
-
-            {/* Personal rating */}
-            {/* <div className="mt-5">
-              <p className="text-sm text-gray-500">
-                My Rating
-              </p>
-
-              <p className="mt-1 text-lg font-semibold">
-                {item.rating !== null
-                  ? `${Number(item.rating).toFixed(1)} / 10`
-                  : "Not rated"}
-              </p>
-            </div> */}
           </div>
-        </div>
 
-        {/* Description */}
-        {media.overview && (
-          <section className="mt-10 rounded-xl border border-gray-800 bg-gray-900 p-6">
-            <h2 className="text-lg font-semibold">
-              Description
-            </h2>
-
-            <p className="mt-3 leading-7 text-gray-400">
-              {media.overview}
-            </p>
-          </section>
-        )}
-
-        {/* Watch history */}
-        <section className="mt-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
-          <h2 className="text-lg font-semibold">
-            Watch History
-          </h2>
-
-          <div className="mt-5 grid grid-cols-2 gap-4">
-            <div className="rounded-lg bg-gray-800 p-4">
-              <p className="text-sm text-gray-400">
+          {/* Stats */}
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
+              <p className="text-sm text-gray-500">
                 Total Watches
               </p>
 
-              <p className="mt-2 text-3xl font-bold">
-                {watchCount}
-              </p>
+              <div className="mt-2 flex items-end gap-2">
+                <span className="text-4xl font-bold">
+                  {watchCount}
+                </span>
+
+                <span className="mb-1 text-sm text-gray-500">
+                  {watchCount === 1
+                    ? "watch"
+                    : "watches"}
+                </span>
+              </div>
             </div>
 
-            <div className="rounded-lg bg-gray-800 p-4">
-              <p className="text-sm text-gray-400">
+            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
+              <p className="text-sm text-gray-500">
                 Rewatches
               </p>
 
-              <p className="mt-2 text-3xl font-bold">
-                {rewatchCount}
-              </p>
+              <div className="mt-2 flex items-end gap-2">
+                <span className="text-4xl font-bold">
+                  {rewatchCount}
+                </span>
+
+                <span className="mb-1 text-sm text-gray-500">
+                  {rewatchCount === 1
+                    ? "rewatch"
+                    : "rewatches"}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="mt-5">
-            <p className="mb-2 text-sm text-gray-400">
-              Rewatch counter
-            </p>
+          {/* Rewatch controls */}
+          <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-6">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-medium">
+                  Rewatch counter
+                </h3>
 
-            <div className="flex items-center justify-between rounded-lg bg-gray-800">
-              <button
-                type="button"
-                onClick={removeWatch}
-                disabled={
-                  updating ||
-                  rewatchCount <= 0
-                }
-                className="px-6 py-3 text-xl text-white hover:text-gray-300 disabled:cursor-not-allowed disabled:text-gray-600"
-              >
-                −
-              </button>
+                <p className="mt-1 text-sm text-gray-500">
+                  Add a watch whenever you watch this
+                  title again.
+                </p>
+              </div>
 
-              <span className="text-lg font-semibold">
-                {rewatchCount}
-              </span>
+              <div className="flex h-12 items-center overflow-hidden rounded-xl border border-gray-700 bg-gray-950">
+                <button
+                  type="button"
+                  onClick={removeWatch}
+                  disabled={
+                    updating ||
+                    rewatchCount <= 0
+                  }
+                  aria-label="Remove rewatch"
+                  className="flex h-full w-14 items-center justify-center text-2xl text-gray-300 transition hover:bg-gray-800 hover:text-white disabled:cursor-not-allowed disabled:text-gray-700 disabled:hover:bg-transparent"
+                >
+                  −
+                </button>
 
-              <button
-                type="button"
-                onClick={addWatch}
-                disabled={updating}
-                className="px-6 py-3 text-xl text-white hover:text-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {updating ? "..." : "+"}
-              </button>
+                <div className="flex h-full min-w-16 items-center justify-center border-x border-gray-800 px-4">
+                  <span className="font-semibold">
+                    {rewatchCount}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addWatch}
+                  disabled={updating}
+                  aria-label="Add rewatch"
+                  className="flex h-full w-14 items-center justify-center text-2xl text-gray-300 transition hover:bg-gray-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {updating ? "…" : "+"}
+                </button>
+              </div>
             </div>
-
-            <p className="mt-2 text-xs text-gray-500">
-              Press + whenever you watch this title
-              again.
-            </p>
           </div>
         </section>
 
         {/* Error */}
         {error && (
-          <p className="mt-4 text-sm text-red-400">
+          <div className="mb-6 rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
             {error}
-          </p>
+          </div>
         )}
 
         {/* Delete */}
-        <div className="mt-8 border-t border-gray-800 pt-8">
+        <section className="border-t border-gray-800 pt-8">
           <button
             type="button"
             onClick={deleteFromLibrary}
-            className="rounded-lg border border-red-900 px-4 py-2 text-sm text-red-400 transition hover:border-red-700 hover:bg-red-950 hover:text-red-300"
+            className="rounded-lg border border-red-900 px-4 py-2.5 text-sm text-red-400 transition hover:border-red-700 hover:bg-red-950 hover:text-red-300"
           >
             Delete from Library
           </button>
-        </div>
+        </section>
       </div>
     </main>
   );
