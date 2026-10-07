@@ -1,0 +1,26 @@
+{
+  "movies": [
+    {
+      "tmdb_id": 64688,
+      "type": "movie",
+      "date_added": "2025/06/15 15:40:53"
+    },
+    {
+      "tmdb_id": 7446,
+      "type": "movie",
+      "date_added": "2025/06/14 14:58:19"
+    }
+  ],
+  "tv": [
+    {
+      "tmdb_id": 5920,
+      "type": "tv",
+      "date_added": "2025/05/21 10:51:50"
+    },
+    {
+      "tmdb_id": 249042,
+      "type": "tv",
+      "date_added": "2025/04/02 16:22:22"
+    }
+  ]
+}
