@@ -16,6 +16,22 @@ type ExportRow = {
   watch_count: number;
 };
 
+type MediaData = {
+  id: number;
+  tmdb_id: number;
+  title: string;
+  type: "movie" | "tv";
+  release_date: string | null;
+  overview: string | null;
+  tmdb_rating: number | null;
+  runtime: number | null;
+  media_genres: {
+    genres: {
+      name: string;
+    }[] | null;
+  }[];
+};
+
 function escapeCsv(value: unknown) {
   const stringValue =
     value === null || value === undefined
@@ -75,12 +91,41 @@ export async function GET(request: NextRequest) {
       throw error;
     }
 
-    const mediaIds =
-      library
-        ?.map((item) => item.media?.id)
-        .filter(
-          (id): id is number => typeof id === "number"
-        ) || [];
+    /*
+     * Supabase can infer nested relationships as arrays
+     * even when the relationship is logically one-to-one.
+     *
+     * Normalize media here so the rest of the export code
+     * works with the actual structure returned by Supabase.
+     */
+    const normalizedLibrary = (library || [])
+      .map((item) => {
+        const media = Array.isArray(item.media)
+          ? item.media[0]
+          : item.media;
+
+        if (!media) {
+          return null;
+        }
+
+        return {
+          ...item,
+          media: media as MediaData,
+        };
+      })
+      .filter(
+        (
+          item
+        ): item is NonNullable<typeof item> =>
+          item !== null
+      );
+
+    const mediaIds = normalizedLibrary
+      .map((item) => item.media.id)
+      .filter(
+        (id): id is number =>
+          typeof id === "number"
+      );
 
     let watchCounts: Record<number, number> = {};
 
@@ -95,24 +140,22 @@ export async function GET(request: NextRequest) {
         throw watchError;
       }
 
-      watchCounts = {};
-
       for (const watch of watches || []) {
         watchCounts[watch.media_id] =
           (watchCounts[watch.media_id] || 0) + 1;
       }
     }
 
-    const rows: ExportRow[] = (library || [])
-      .filter((item) => item.media)
-      .map((item) => {
-        const media = item.media!;
+    const rows: ExportRow[] =
+      normalizedLibrary.map((item) => {
+        const media = item.media;
 
         const genres =
           media.media_genres
-            ?.map(
-              (item) => item.genres?.name
+            ?.flatMap(
+              (item) => item.genres || []
             )
+            .map((genre) => genre.name)
             .filter(Boolean)
             .join(", ") || "";
 
@@ -133,6 +176,9 @@ export async function GET(request: NextRequest) {
         };
       });
 
+    /*
+     * JSON
+     */
     if (format === "json") {
       return new NextResponse(
         JSON.stringify(rows, null, 2),
@@ -148,6 +194,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    /*
+     * CSV
+     */
     if (format === "csv") {
       const headers = [
         "id",
@@ -190,7 +239,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Excel export is handled below.
+    /*
+     * Excel
+     */
     const XLSX = await import("xlsx");
 
     const worksheet =
