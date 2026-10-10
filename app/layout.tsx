@@ -28,8 +28,33 @@
 //   );
 // }
 
+// import type { Metadata } from "next";
+// import "./globals.css";
+// import AuthControls from "@/app/components/auth-controls";
+
+// export const metadata: Metadata = {
+//   title: "Movie Tracker",
+//   description: "Track your movies and TV shows",
+// };
+
+// export default function RootLayout({
+//   children,
+// }: Readonly<{
+//   children: React.ReactNode;
+// }>) {
+//   return (
+//     <html lang="en">
+//       <body>
+//         <AuthControls />
+//         {children}</body>
+//     </html>
+//   );
+// }
+
+
 import type { Metadata } from "next";
 import "./globals.css";
+import AuthControls from "@/app/components/auth-controls";
 
 export const metadata: Metadata = {
   title: "Movie Tracker",
@@ -43,7 +68,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="min-h-screen bg-black text-white">
+        <header className="border-b border-white/10 bg-black/80">
+          <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+            <a
+              href="/library"
+              className="flex items-center gap-2 text-sm font-bold tracking-tight transition hover:text-gray-300 sm:text-base"
+            >
+              <span className="text-xl">🎬</span>
+              <span>Movie Tracker</span>
+            </a>
+
+            <div className="flex shrink-0 items-center">
+              <AuthControls />
+            </div>
+          </div>
+        </header>
+
+        <main>{children}</main>
+      </body>
     </html>
   );
 }

@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { requireOwner } from "@/lib/require-owner";
 
 export async function POST(request: NextRequest) {
+  const auth = await requireOwner();
+
+  if (auth.response) {
+    return auth.response;
+  }
   try {
     const body = await request.json();
 

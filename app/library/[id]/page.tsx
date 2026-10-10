@@ -39,6 +39,35 @@ export default function LibraryDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState("");
+  const [isOwner, setIsOwner] = useState(false);
+
+  useEffect(() => {
+  let active = true;
+
+  async function checkOwner() {
+    try {
+      const response = await fetch("/api/auth/owner", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (active) {
+        setIsOwner(response.ok && data.isOwner === true);
+      }
+    } catch {
+      if (active) {
+        setIsOwner(false);
+      }
+    }
+  }
+
+  checkOwner();
+
+  return () => {
+    active = false;
+  };
+}, []);
 
   useEffect(() => {
     async function loadItem() {
@@ -500,6 +529,7 @@ export default function LibraryDetailsPage() {
           </div>
 
           {/* Rewatch controls */}
+          {isOwner && (
           <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-6">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -544,7 +574,7 @@ export default function LibraryDetailsPage() {
                 </button>
               </div>
             </div>
-          </div>
+          </div>)}
         </section>
 
         {/* Error */}
@@ -555,15 +585,17 @@ export default function LibraryDetailsPage() {
         )}
 
         {/* Delete */}
-        <section className="border-t border-gray-800 pt-8">
-          <button
-            type="button"
-            onClick={deleteFromLibrary}
-            className="rounded-lg border border-red-900 px-4 py-2.5 text-sm text-red-400 transition hover:border-red-700 hover:bg-red-950 hover:text-red-300"
-          >
-            Delete from Library
-          </button>
-        </section>
+        {isOwner && (
+  <section className="border-t border-gray-800 pt-8">
+    <button
+      type="button"
+      onClick={deleteFromLibrary}
+      className="rounded-lg border border-red-900 px-4 py-2.5 text-sm text-red-400 transition hover:border-red-700 hover:bg-red-950 hover:text-red-300"
+    >
+      Delete from Library
+    </button>
+  </section>
+)}
       </div>
     </main>
   );

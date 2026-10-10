@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type ImportItem = {
   tmdb_id: number;
@@ -28,6 +28,41 @@ export default function ImportPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState(0);
+
+const [isOwner, setIsOwner] = useState(false);
+const [checkingOwner, setCheckingOwner] = useState(true);
+
+useEffect(() => {
+  let active = true;
+
+  async function checkOwner() {
+    try {
+      const response = await fetch("/api/auth/owner", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (active) {
+        setIsOwner(response.ok && data.isOwner === true);
+      }
+    } catch {
+      if (active) {
+        setIsOwner(false);
+      }
+    } finally {
+      if (active) {
+        setCheckingOwner(false);
+      }
+    }
+  }
+
+  checkOwner();
+
+  return () => {
+    active = false;
+  };
+}, []);
 
   function handleFileChange(
     event: React.ChangeEvent<HTMLInputElement>
@@ -168,7 +203,40 @@ export default function ImportPage() {
     (result) => !result.success
   ).length;
 
+  if (checkingOwner) {
   return (
+    <main className="min-h-screen bg-gray-950 px-6 py-12 text-white">
+      <p className="text-sm text-gray-400">
+        Checking permissions…
+      </p>
+    </main>
+  );
+}
+
+if (!isOwner) {
+  return (
+    <main className="min-h-screen bg-gray-950 px-6 py-12 text-white">
+      <div className="mx-auto max-w-3xl">
+        <h1 className="text-3xl font-bold">
+          Import Library
+        </h1>
+
+        <p className="mt-3 text-gray-400">
+          Sign in as the library owner to import data.
+        </p>
+
+        <a
+          href="/login?next=%2Fimport"
+          className="mt-6 inline-flex rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-gray-200"
+        >
+          Sign in
+        </a>
+      </div>
+    </main>
+  );
+}
+  return (
+    
     <main className="min-h-screen bg-gray-950 text-white">
       <div className="mx-auto max-w-4xl px-6 py-12">
         <button

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase-server";
+import { requireOwner } from "@/lib/require-owner";
 
 // GET /api/library
 // Loads the library and watch counts
@@ -85,6 +86,11 @@ export async function GET() {
 // POST /api/library
 // Adds a movie/show and records its first watch
 export async function POST(request: NextRequest) {
+  const auth = await requireOwner();
+
+  if (auth.response) {
+    return auth.response;
+  }
   try {
     const body = await request.json();
 
@@ -365,6 +371,11 @@ export async function POST(request: NextRequest) {
   }
 }
 export async function DELETE(request: NextRequest) {
+  const auth = await requireOwner();
+
+  if (auth.response) {
+    return auth.response;
+  }
   try {
     const id = request.nextUrl.searchParams.get("id");
 

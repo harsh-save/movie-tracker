@@ -48,7 +48,9 @@ type SearchResult = {
 };
 
 export default function LibraryPage() {
+  const [isOwner, setIsOwner] = useState(false);
   const [items, setItems] = useState<LibraryItem[]>([]);
+
   const [watchCounts, setWatchCounts] = useState<
     Record<number, number>
   >({});
@@ -114,6 +116,33 @@ export default function LibraryPage() {
       setLoading(false);
     }
   }
+  useEffect(() => {
+  let active = true;
+
+  async function checkOwner() {
+    try {
+      const response = await fetch("/api/auth/owner", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      if (active) {
+        setIsOwner(response.ok && data.isOwner === true);
+      }
+    } catch {
+      if (active) {
+        setIsOwner(false);
+      }
+    }
+  }
+
+  checkOwner();
+
+  return () => {
+    active = false;
+  };
+}, []);
 
   useEffect(() => {
     loadLibrary();
@@ -526,15 +555,16 @@ export default function LibraryPage() {
           {/* Actions */}
           <div className="flex items-center gap-2">
             {/* Add */}
-            <button
-              type="button"
-              onClick={() =>
-                setShowAddModal(true)
-              }
-              className="rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-gray-200"
-            >
-              + Add
-            </button>
+            {isOwner && (
+  <button
+    type="button"
+    onClick={() => setShowAddModal(true)}
+    className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black shadow-sm transition hover:bg-gray-200"
+  >
+    <span className="text-lg leading-none">+</span>
+    Add title
+  </button>
+)}
 
             {/* Export */}
             <div className="relative">
@@ -921,7 +951,7 @@ export default function LibraryPage() {
       {/* ADD TO LIBRARY MODAL */}
       {/* ========================================================= */}
 
-      {showAddModal && (
+      {isOwner && showAddModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onMouseDown={(event) => {
